@@ -128,6 +128,41 @@ class ServerTests(unittest.TestCase):
   self.assertIn('зарегистрирована', telegram_adapter.handle(123, 'комната 25'))
   self.assertIn('недействительна', telegram_adapter.handle(456, '/start invalid'))
 
+ def test_prefilled_room_8_without_second_prompt(self):
+  code, data, _ = self.request('/api/chat', {'message': 'Не работает отопление', 'room': '8'}, guest='alpha-guest')
+  self.assertEqual(code, 200); self.assertNotIn('need_room', data)
+  self.assertEqual(data['room'], '8'); self.assertEqual(data['category'], 'heating')
+  self.assertIn('Комната 8', data['reply']); self.assertNotIn(data['ticket_id'], data['reply'])
+  self.assertIn(app.short_id(data['ticket_id']), data['reply'])
+  self.assertEqual(len(data['ticket_id']), 16)
+  for value in ['8', ' 8 ', '№8', 'Room 8', '８']:
+   self.assertEqual(app.room_number(value), '8')
+  with app.db() as c:
+   self.assertEqual(c.execute('SELECT room FROM requests WHERE id=?', (data['ticket_id'],)).fetchone()[0], '8')
+
+ def test_shared_phrase_corpus_and_no_false_tickets(self):
+  cases = json.loads((Path(__file__).parent / 'phrases.json').read_text())
+  with app.db() as c: before = c.execute('SELECT count(*) FROM requests').fetchone()[0]
+  for message, group, key in cases:
+   self.assertEqual(app.classify(message), (group, key), message)
+   if group == 'guards':
+    # Direct service call isolates intent handling from HTTP rate limits.
+    result = app.chat('alpha', message, '8')
+    self.assertNotIn('ticket_id', result); self.assertTrue(result['need_detail'])
+  with app.db() as c: self.assertEqual(c.execute('SELECT count(*) FROM requests').fetchone()[0], before)
+
+ def test_guest_cannot_read_or_change_staff_tickets(self):
+  data = self.request('/api/chat', {'message': 'Не работает отопление', 'room': '8'}, guest='beta-guest')[1]
+  self.assertEqual(self.request('/api/tickets', guest='beta-guest')[0], 401)
+  self.assertEqual(self.request('/api/tickets/status', {'id': data['ticket_id'], 'status': 'accepted'}, guest='beta-guest')[0], 401)
+
+ def test_schedule_isolation(self):
+  alpha = self.request('/api/settings', user='alpha-owner')[1]
+  alpha['dinner'] = {'ru': '18:15–19:30'}
+  self.assertEqual(self.request('/api/settings', {'settings': alpha}, user='alpha-owner')[0], 200)
+  self.assertEqual(app.chat('alpha', 'Во сколько ужин?')['reply'], '18:15–19:30')
+  self.assertEqual(app.chat('beta', 'Во сколько ужин?')['reply'], app.TEXT['ru'][0])
+
  def test_assets_and_no_cache(self):
   status, html, headers = self.request('/')
   self.assertEqual(status, 200); self.assertIn('data-runtime="server"', html)

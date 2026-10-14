@@ -1,4 +1,4 @@
-"""GESHA HOTEL BOT v0.4: dependency-free pilot server; use HTTPS reverse proxy."""
+"""GESHA HOTEL BOT v0.4.1: dependency-free pilot server; use HTTPS reverse proxy."""
 import argparse
 import getpass
 import hashlib
@@ -10,12 +10,14 @@ import re
 import secrets
 import sqlite3
 import time
+import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 ROOT = Path(__file__).parent
 DB = Path(os.environ.get('HOTEL_DB', ROOT / 'hotel.db'))
 RULES = json.loads((ROOT / 'docs/rules.json').read_text())
+I18N = json.loads((ROOT / 'docs/i18n.json').read_text())
 LANGS = ('ru', 'de', 'en', 'uk')
 ROLES = ('staff', 'manager', 'owner')
 FIELDS = ('name', 'logo', 'address', 'reception', 'checkin', 'checkout', 'breakfast', 'lunch', 'dinner', 'wifi', 'parking', 'services', 'shop', 'taxi', 'information')
@@ -66,7 +68,7 @@ def add_user(hotel, name, role, password):
 
 
 def classify(message):
- for group in ('issues', 'faq'):
+ for group in ('guards', 'issues', 'faq'):
   for key, pattern in RULES[group]:
    if re.search(pattern, message, re.I):
     return group, key
@@ -82,8 +84,13 @@ def language(message, fallback='ru'):
 
 
 def room_number(value):
- match = re.fullmatch(r'\s*(?:(?:комната|комнате|номер|кімната|кімнаті|room|zimmer)\s*)?№?\s*([\w-]{1,10})\s*[.!]?\s*', value, re.I)
- return match[1] if match and re.search(r'\d', match[1]) else ''
+ value = unicodedata.normalize('NFKC', str(value))
+ match = re.fullmatch(r'\s*(?:(?:комната|комнате|номер|кімната|кімнаті|room|zimmer)\s*)?(?:№|No\.?)?\s*([\w-]{1,10})\s*[.!]?\s*', value, re.I)
+ return match[1] if match and re.search(r'[0-9]', match[1]) else ''
+
+
+def short_id(value):
+ return re.sub('[^A-Za-z0-9]', '', str(value))[-8:].upper()
 
 
 def chat(hotel, message, room='', lang='ru', channel='web'):
@@ -95,13 +102,15 @@ def chat(hotel, message, room='', lang='ru', channel='web'):
   group, key = ai_provider.classify(message, RULES)
  with db() as c:
   config = json.loads(c.execute('SELECT settings FROM hotels WHERE id=?', (hotel,)).fetchone()[0])
+  if group == 'guards':
+   return {'reply': I18N[lang][key], 'lang': lang, 'need_detail': True}
   if group == 'issues':
    if key == 'help': return {'reply': texts[2], 'lang': lang, 'need_detail': True}
    room = room_number(room)
    if not room: return {'reply': texts[1], 'need_room': True, 'lang': lang}
    tid = secrets.token_hex(8).upper()
    c.execute('INSERT INTO requests(id,hotel,room,description,category,priority,channel) VALUES(?,?,?,?,?,?,?)', (tid, hotel, room, message, key, 'normal', channel))
-   return {'reply': texts[3].format(id=tid), 'ticket_id': tid, 'lang': lang}
+   return {'reply': I18N[lang]['ticket'].format(id=short_id(tid), room=room, category=I18N[lang][key]), 'ticket_id': tid, 'room': room, 'category': key, 'status': 'new', 'lang': lang}
   if group == 'faq':
    value = config.get(key, {})
    return {'reply': value.get(lang) or texts[0] if isinstance(value, dict) else texts[0], 'lang': lang}
@@ -290,7 +299,7 @@ def main():
  else:
   import telegram_adapter
   telegram_adapter.start()
-  print('GESHA HOTEL BOT v0.4; bind 127.0.0.1 by default; HTTPS proxy required for production cookies.')
+  print('GESHA HOTEL BOT v0.4.1; bind 127.0.0.1 by default; HTTPS proxy required for production cookies.')
   ThreadingHTTPServer((os.getenv('HOST', '127.0.0.1'), int(os.getenv('PORT', '8080'))), Handler).serve_forever()
 
 

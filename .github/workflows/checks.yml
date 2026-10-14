@@ -1,7 +1,7 @@
-name: v0.4 checks
+name: v0.4.1 checks
 on:
   push:
-    branches: [main, 'release/**']
+    branches: [main, 'release/**', 'fix/**']
   pull_request:
 permissions:
   contents: read
