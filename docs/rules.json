@@ -1,24 +1,93 @@
 {
-  "version": "0.4.0",
+  "version": "0.4.1",
   "issues": [
-    ["water", "горяч.*вод|гаряч.*вод|hot water|warmwasser|протек|течет|тече|leak|undicht|tropft"],
-    ["heating", "холод|мерз|мёрз|отоплен|не гре|батаре|опален|heizung|heating|cold|kalt"],
-    ["internet", "(не работает|не працює|не працю|нет|немає|no|broken|not working|doesn't work|kein|kaputt|funktioniert nicht).*(интернет|інтернет|wi.?fi|wlan|internet)|(интернет|інтернет|wi.?fi|wlan|internet).*(не работает|не працю|not working|doesn't work|kaputt|funktioniert nicht|geht nicht)"],
-    ["cleaning", "уборк|убрат|гряз|полотен|прибиран|бруд|рушник|clean|dirty|towel|handt|handtü|reinig|schmutz"],
-    ["repair", "слом|не работает|не працю|broken|kaputt|defekt|doesn't work|not working|funktioniert nicht|geht nicht"],
-    ["help", "помог|помощ|проблем|допом|help|problem|hilfe"]
+    [
+      "water",
+      "(нет|немає|нема|не буде|no|kein).*(горяч.*вод|гаряч.*вод|hot water|warmwasser)|(горяч.*вод|hot water|warmwasser).*(нет|не идет|не йде|not working|nicht)|протек|течет|тече|leak|undicht|tropft"
+    ],
+    [
+      "heating",
+      "холодно|мерзн|мёрзн|замерз|замёрз|не гре|немає тепла|нет тепла|не працю.*опален|не работает.*отоплен|отоплен.*не работает|heizung.*(nicht|kaputt|defekt)|heating.*(not|broken|doesn)|broken heating|cold room|room.*cold|kalt"
+    ],
+    [
+      "internet",
+      "(пропал|пропав|исчез|не работает|не працює|не працю|нет|немає|no|broken|not working|doesn't work|kein|kaputt|funktioniert nicht).*(интернет|інтернет|wi.?fi|wlan|internet)|(интернет|інтернет|wi.?fi|wlan|internet).*(не работает|не працю|not working|doesn't work|kaputt|funktioniert nicht|geht nicht)|(wi.?fi|internet|wlan).*(isn.t working|is down|down|ausgefallen)"
+    ],
+    [
+      "cleaning",
+      "нужн.*(уборк|убрат|полотен)|нет.*чист.*полотен|заказ.*уборк|уберите|грязно|мусор|потрібн.*(прибиран|рушник)|брудно|need.*(clean|towel)|dirty|clean.*room|room.*clean|handtücher.*(bitte|brauche)|brauche.*handt|zimmer.*(schmutz|reinig)|bitte.*reinig"
+    ],
+    [
+      "repair",
+      "слом|не работает|не працю|broken|kaputt|defekt|doesn't work|not working|funktioniert nicht|geht nicht"
+    ],
+    [
+      "help",
+      "помог|помощ|проблем|допом|help|problem|hilfe"
+    ]
   ],
   "faq": [
-    ["breakfast", "завтрак|снідан|frühstück|breakfast"],
-    ["lunch", "обед|обід|mittagessen|lunch"],
-    ["dinner", "ужин|вечеря|abendessen|dinner|supper"],
-    ["checkout", "выезд|выех|освобод.*номер|освобод.*комнат|виселен|виїзд|звільн.*номер|check.?out|auscheck|abreis|zimmer.*verlassen|leave.*room|vacate"],
-    ["checkin", "заезд|засел|check.?in|eincheck|anreis|заїзд|поселен"],
-    ["wifi", "wi.?fi|wlan|вай.?фай|интернет|інтернет|internet"],
-    ["parking", "парков|паркув|park"],
-    ["shop", "магазин|supermarket|shop|supermarkt|einkauf"],
-    ["taxi", "такси|таксі|taxi|cab"],
-    ["reception", "ресепш|администратор|адміністратор|rezeption|reception|контакт|contact"],
-    ["services", "услуг|послуг|service"]
+    [
+      "breakfast",
+      "завтрак|снідан|frühstück|breakfast"
+    ],
+    [
+      "lunch",
+      "обед|обід|mittagessen|lunch"
+    ],
+    [
+      "dinner",
+      "ужин|вечеря|abendessen|dinner|supper"
+    ],
+    [
+      "checkout",
+      "выезд|выех|освобод.*номер|освобод.*комнат|виселен|виїзд|звільн.*номер|check.?out|auscheck|abreis|zimmer.*verlassen|leave.*room|vacate|выселен|до скольки.*оставаться"
+    ],
+    [
+      "checkin",
+      "заезд|засел|check.?in|eincheck|anreis|заїзд|поселен"
+    ],
+    [
+      "wifi",
+      "wi.?fi|wlan|вай.?фай|интернет|інтернет|internet"
+    ],
+    [
+      "parking",
+      "парков|паркув|park"
+    ],
+    [
+      "shop",
+      "магазин|supermarket|shop|supermarkt|einkauf"
+    ],
+    [
+      "taxi",
+      "такси|таксі|taxi|cab"
+    ],
+    [
+      "reception",
+      "ресепш|администратор|адміністратор|rezeption|reception|контакт|contact"
+    ],
+    [
+      "services",
+      "услуг|послуг|service"
+    ]
+  ],
+  "guards": [
+    [
+      "lateCheckout",
+      "(выех|выезд|высел|освобод).*(позже|поздн|попозже)|(поздн|позже).*(выезд|выех)|late.?check.?out|check.?out.*later|spät.*(abreis|auscheck)|пізн.*виїзд|виїх.*пізніше"
+    ],
+    [
+      "mealsClarify",
+      "во сколько кормят|когда кормят|коли годують|when.*(meals|food)|wann.*\\bessen\\b"
+    ],
+    [
+      "needDetail",
+      "(не нужна|не надо|не нужно|не потрібн|don.t need|do not need|brauche kein).*(уборк|полотен|отоплен|clean|towel|heiz)|^(отопление|полотенца|горячая вода|heating|towels|heizung|handtücher)[?.! ]*$"
+    ],
+    [
+      "serviceQuestion",
+      "(во сколько|как|когда|есть ли|чи є|how|when|is there|wie|wann).*(отоплен|горяч.*вод|уборк|полотен|heating|hot water|cleaning|towels|heizung|warmwasser|reinigung)|где.*полотен"
+    ]
   ]
 }

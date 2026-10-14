@@ -19,3 +19,13 @@ test('root mirror and versioned resources match', () => {
  assert.equal(fs.readFileSync('index.html', 'utf8'), fs.readFileSync('docs/index.html', 'utf8'));
  for (const p of ['docs/index.html', 'docs/staff.html']) for (const name of ['style.css', 'engine.js', 'ui.js']) assert.ok(fs.readFileSync(p, 'utf8').includes(name + '?v=' + rules.version));
 });
+test('v0.4.1 shared phrase corpus, ambiguities and late checkout', () => {
+ for (const [message,group,key] of require('./phrases.json')) assert.deepEqual(E.classify(message,rules),{group,key},message);
+});
+test('single digit, keyboard normalization and short presentation IDs', () => {
+ for(const s of ['8',' 8 ','№8','Room 8','８']) assert.equal(E.roomNumber(s),'8',s);
+ for(const id of ['A82CDE1234567890','711936A1-525E-458C-9A5F-207F325F9C52','LEGACY-12']) {
+  assert.ok(E.shortId(id).length<=8); assert.ok(E.shortId(id).length>0);
+ }
+ assert.equal(E.shortId('A82CDE1234567890'),'34567890');
+});

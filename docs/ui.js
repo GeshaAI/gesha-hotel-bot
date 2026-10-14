@@ -5,8 +5,9 @@
  const isStaff = document.body.dataset.page === 'staff';
  const server = document.body.dataset.runtime === 'server';
  let lang = new URLSearchParams(location.search).get('lang') || 'ru';
- let dict, rules, settings = {}, tickets = [], users = [], me = null, pending = null, busy = false;
+ let dict, rules, settings = {}, tickets = [], users = [], me = null, pending = null, busy = false, boundRoom = '', missingOnly = false, settingsDirty = false;
  const statuses = ['new', 'accepted', 'in_progress', 'done'];
+ const essentialFields = ['breakfast', 'lunch', 'dinner', 'checkin', 'checkout', 'wifi', 'parking', 'reception', 'services'];
  const fields = ['name', 'logo', 'address', 'reception', 'checkin', 'checkout', 'breakfast', 'lunch', 'dinner', 'wifi', 'parking', 'services', 'shop', 'taxi', 'information'];
  const storeKey = 'gesha-hotel-demo-v04';
  const guestToken = new URLSearchParams(location.hash.slice(1)).get('access') || '';
@@ -39,32 +40,40 @@
   $('other').textContent = t(isStaff ? 'guest' : 'staff');
   $('other').href = (isStaff ? './' : server ? '/staff' : 'staff.html') + '?lang=' + lang;
  }
- function bubble(text, mine = false) { $('chat').append(node('div', text, 'bubble' + (mine ? ' mine' : ''))); $('chat').scrollTop = $('chat').scrollHeight; }
+ function scrollChat() { requestAnimationFrame(() => { $('chat').scrollTop = $('chat').scrollHeight; }); }
+ function bubble(text, mine = false, ticketId = '') { const b = node('div', text, 'bubble' + (mine ? ' mine' : '')); if (ticketId) { b.dataset.ticketId = ticketId; b.title = t('fullId') + ': ' + ticketId; } $('chat').append(b); scrollChat(); }
+ function renderRoom() { const room = boundRoom || E.roomNumber($('room').value); $('roomStatus').textContent = room ? t('roomSaved').replace('{room}', room) : t('roomEmpty'); $('roomStatus').classList.toggle('valid', !!room); }
+ function formatTicket(template, ticket) { return template.replace('{id}', E.shortId(ticket.id)).replace('{room}', ticket.room).replace('{category}', t(ticket.category)); }
  function infoValue(key) { return typeof settings[key] === 'object' && settings[key] ? settings[key][lang] || '' : ''; }
  function renderGuest() {
+  renderRoom();
   $('hotelName').textContent = $('infoName').textContent = typeof settings.name === 'string' ? settings.name : 'GESHA HOTEL';
   $('address').textContent = typeof settings.address === 'string' ? settings.address : '';
   $('hotelLogo').hidden = true;
   if (typeof settings.logo === 'string' && settings.logo.startsWith('https://')) { $('hotelLogo').src = settings.logo; $('hotelLogo').hidden = false; }
   $('guestInfo').replaceChildren();
   for (const key of ['checkin', 'checkout', 'breakfast', 'lunch', 'dinner', 'wifi', 'parking', 'reception', 'services', 'information']) {
-   const row = node('div', undefined, 'info-row'); row.append(node('strong', t(key)), node('p', infoValue(key) || t('missing'))); $('guestInfo').append(row);
+   const value = infoValue(key); if (!value) continue;
+   const row = node('div', undefined, 'info-row'); row.append(node('strong', t(key)), node('p', value)); $('guestInfo').append(row);
   }
+  if (!$('guestInfo').children.length) $('guestInfo').append(node('p', t('missing')));
   $('chips').replaceChildren();
   for (const key of ['breakfast', 'lunch', 'checkout', 'wifi', 'parking']) { const b = node('button', t(key)); b.type = 'button'; b.onclick = () => submit(t(key)); $('chips').append(b); }
  }
- async function respond(message) {
-  if (server) return api('/api/chat', {message, room: $('room').value, lang});
+ async function respond(message, room) {
+  if (server) return api('/api/chat', {message, room, lang});
+  // Refresh facts and requests from another open demo tab before answering.
+  loadDemo(); renderGuest();
   const {group, key} = E.classify(message, rules);
+  if (group === 'guards') return {reply: t(key), need_detail: true};
   if (group === 'issues') {
    if (key === 'help') return {reply: t('needDetail'), need_detail: true};
-   const room = E.roomNumber($('room').value);
    if (!room) return {reply: t('needRoom'), need_room: true};
-   const id = crypto.randomUUID().slice(0, 18).toUpperCase();
+   const id = crypto.randomUUID().toUpperCase();
    const ticket = {id, room, description: message, category: key, priority: 'normal', created_at: new Date().toISOString(), status: 'new', assignee: null};
    tickets.unshift(ticket);
    try { saveDemo(); } catch (e) { tickets.shift(); throw e; }
-   return {reply: t('demoTicket').replace('{id}', id), ticket_id: id};
+   return {reply: formatTicket(t('demoTicket'), ticket), ticket_id: id, room, category: key};
   }
   return {reply: group === 'faq' ? infoValue(key) || t('missing') : t('unknown')};
  }
@@ -72,22 +81,29 @@
   if (busy || !input.trim()) return;
   clearError(); busy = true; $('send').disabled = true;
   bubble(input, true);
+  // Capture the entered room before any language rendering or async operation.
+  let room = boundRoom || E.roomNumber($('room').value);
   let message = input;
   try {
    const detected = E.language(input, lang);
    if (dict[detected] && detected !== lang) { lang = detected; renderText(); renderGuest(); }
    if (pending) {
-    const room = E.roomNumber(input) || E.roomNumber($('room').value);
-    if (room) { $('room').value = room; message = pending; }
-    else if (!E.classify(input, rules).key) { bubble(t('needRoom')); return; }
-    else { pending = null; }
+    const roomAnswer = E.roomNumber(input);
+    const intent = E.classify(input, rules);
+    if (roomAnswer) { room = boundRoom || roomAnswer; message = pending; }
+    else if (intent.key) { pending = null; }
+    else if (room) { message = pending; }
+    else { bubble(t('needRoom')); return; }
    }
-   const result = await respond(message);
+   if (room) $('room').value = room;
+   renderRoom();
+   const result = await respond(message, room);
    pending = result.need_room ? message : null;
-   bubble(result.reply);
+   if (result.room) { $('room').value = result.room; renderRoom(); }
+   bubble(result.reply, false, result.ticket_id);
    $('message').value = '';
   } catch (e) { error(e); bubble(t('offline')); }
-  finally { busy = false; $('send').disabled = false; $('cancel').hidden = !pending; }
+  finally { busy = false; $('send').disabled = false; $('cancel').hidden = !pending; scrollChat(); }
  }
  function readSettings() {
   document.querySelectorAll('[data-field]').forEach(n => {
@@ -97,17 +113,38 @@
   });
   settings.languages = [...document.querySelectorAll('[data-service-lang]:checked')].map(n => n.value);
  }
+ function settingsState() {
+  let done = 0;
+  document.querySelectorAll('.setting-field').forEach(label => {
+   const input = label.querySelector('[data-field]'); const filled = !!input.value.trim();
+   label.querySelector('.field-state').textContent = t(filled ? 'filled' : 'missingField');
+   label.classList.toggle('is-filled', filled); label.hidden = missingOnly && filled && document.activeElement !== input;
+   if (essentialFields.includes(input.dataset.field) && filled) done++;
+  });
+  $('settingsProgress').textContent = t('settingsProgress').replace('{done}', done).replace('{total}', essentialFields.length);
+  $('missingToggle').textContent = t(missingOnly ? 'allFields' : 'showMissing');
+  $('missingToggle').setAttribute('aria-pressed', String(missingOnly));
+ }
  function renderSettings() {
   const root = $('settings'); root.replaceChildren();
-  for (const key of fields) {
-   const label = node('label', t(key)); const input = node(['name', 'logo', 'address', 'checkin', 'checkout', 'breakfast', 'lunch', 'dinner'].includes(key) ? 'input' : 'textarea');
-   input.dataset.field = key; input.maxLength = ['name', 'logo', 'address'].includes(key) ? 500 : 2000;
-   input.value = ['name', 'logo', 'address'].includes(key) ? (typeof settings[key] === 'string' ? settings[key] : '') : infoValue(key);
-   label.append(input); root.append(label);
+  const groups = [['mealsGroup', ['breakfast', 'lunch', 'dinner']], ['stayGroup', ['checkin', 'checkout', 'wifi', 'parking', 'reception', 'services']], ['hotelGroup', fields.filter(x => !essentialFields.includes(x))]];
+  for (const [title, keys] of groups) {
+   const group = node('fieldset', undefined, 'settings-group'); group.append(node('legend', t(title)));
+   const grid = node('div', undefined, 'settings-grid');
+   for (const key of keys) {
+    const label = node('label', undefined, 'setting-field');
+    const heading = node('span', undefined, 'field-heading'); heading.append(node('span', t(key)), node('small', '', 'field-state')); label.append(heading);
+    const input = node(['name', 'logo', 'address', 'checkin', 'checkout', 'breakfast', 'lunch', 'dinner'].includes(key) ? 'input' : 'textarea');
+    input.dataset.field = key; input.maxLength = ['name', 'logo', 'address'].includes(key) ? 500 : 2000;
+    input.value = ['name', 'logo', 'address'].includes(key) ? (typeof settings[key] === 'string' ? settings[key] : '') : infoValue(key);
+    input.placeholder = t('missingField'); label.append(input); grid.append(label);
+   }
+   group.append(grid); root.append(group);
   }
-  const languageBox = node('div'); languageBox.append(node('p', t('languages')));
-  for (const l of ['ru', 'de', 'en', 'uk']) { const label = node('label', dict[l].language + ' · ' + l.toUpperCase()); const input = node('input'); input.type = 'checkbox'; input.value = l; input.dataset.serviceLang = l; input.checked = (settings.languages || ['ru', 'de', 'en', 'uk']).includes(l); label.append(input); languageBox.append(label); }
-  root.append(languageBox);
+  const languageBox = node('fieldset', undefined, 'service-languages'); languageBox.append(node('legend', t('languages')));
+  for (const l of ['ru', 'de', 'en', 'uk']) { const label = node('label', dict[l].language + ' · ' + l.toUpperCase()); const input = node('input'); input.type = 'checkbox'; input.value = l; input.dataset.serviceLang = l; input.checked = (settings.languages || ['ru', 'de', 'en', 'uk']).includes(l); label.prepend(input); languageBox.append(label); }
+  root.append(languageBox); settingsState();
+  $('saved').textContent = settingsDirty ? t('unsaved') : '';
  }
  function select(options, selected) { const s = node('select'); for (const [value, label] of options) { const o = node('option', label); o.value = value; s.append(o); } s.value = selected || ''; return s; }
  function renderTickets() {
@@ -117,8 +154,9 @@
   const shown = tickets.filter(x => !$('filter').value || x.status === $('filter').value);
   if (!shown.length) root.append(node('p', t('empty')));
   for (const ticket of shown) {
-   const row = node('article', undefined, 'ticket'); const heading = node('div', undefined, 'ticket-title'); heading.append(node('strong', t('room') + ' ' + ticket.room), node('span', t(ticket.status), 'badge')); row.append(heading, node('p', ticket.description));
-   row.append(node('small', '#' + ticket.id + ' · ' + t(ticket.category) + ' · ' + (ticket.created_at ? new Date(ticket.created_at).toLocaleString(lang) : '—')));
+   const row = node('article', undefined, 'ticket'); row.dataset.ticketId = ticket.id; const heading = node('div', undefined, 'ticket-title'); heading.append(node('strong', t('room') + ' ' + ticket.room), node('span', t(ticket.status), 'badge status-' + ticket.status)); row.append(heading, node('p', ticket.description));
+   row.append(node('small', '#' + E.shortId(ticket.id) + ' · ' + t(ticket.category) + ' · ' + (ticket.created_at ? new Date(ticket.created_at).toLocaleString(lang) : '—')));
+   const fullId = node('details', undefined, 'ticket-id'); fullId.append(node('summary', t('fullId')), node('code', ticket.id)); row.append(fullId);
    const controls = node('div', undefined, 'ticket-controls');
    const assigned = select([['', t('unassigned')], ...users.map(x => [x.id, x.name])], ticket.assignee);
    const priority = select(['low', 'normal', 'high'].map(x => [x, t(x)]), ticket.priority);
@@ -148,7 +186,7 @@
   renderSettings(); await refreshTickets();
  }
  try {
-  [dict, rules] = await Promise.all(['i18n.json', 'rules.json'].map(async path => { const r = await fetch(path + '?v=0.4.0', {cache: 'no-store'}); if (!r.ok) throw Error(); return r.json(); }));
+  [dict, rules] = await Promise.all(['i18n.json', 'rules.json'].map(async path => { const r = await fetch(path + '?v=0.4.1', {cache: 'no-store'}); if (!r.ok) throw Error(); return r.json(); }));
   if (!dict[lang]) lang = 'ru';
   try { document.body.classList.toggle('dark', localStorage.getItem('gesha-theme') === 'dark'); } catch (_) {}
   renderText();
@@ -157,12 +195,15 @@
   $('lang').onchange = async () => {
    if (isStaff && me && me.role !== 'staff') readSettings();
    lang = $('lang').value; renderText();
-   if (isStaff && me) { renderSettings(); renderTickets(); const filter = $('filter'); for (const o of filter.options) o.textContent = t(o.value || 'all'); }
+   if (isStaff && me) { $('identity').textContent = me.name + ' · ' + t(me.role === 'staff' ? 'staffRole' : me.role); renderSettings(); renderTickets(); const filter = $('filter'); for (const o of filter.options) o.textContent = t(o.value || 'all'); }
    else if (!isStaff) renderGuest();
   };
   if (!isStaff) {
-   if (server) { const config = await api('/api/config'); settings = config.settings; $('room').value = config.room; $('room').readOnly = !!config.room; }
+   if (server) { const config = await api('/api/config'); settings = config.settings; boundRoom = config.room || ''; if (boundRoom) $('room').value = boundRoom; $('room').readOnly = !!boundRoom; }
    renderGuest(); bubble(t('welcome'));
+   $('room').addEventListener('input', renderRoom); $('room').addEventListener('change', renderRoom);
+   window.visualViewport?.addEventListener('resize', scrollChat);
+   $('message').addEventListener('focus', scrollChat);
    $('chatForm').onsubmit = e => { e.preventDefault(); submit($('message').value); };
    $('cancel').onclick = () => { pending = null; $('cancel').hidden = true; bubble(t('cancelled')); };
   } else {
@@ -170,7 +211,9 @@
    $('logout').onclick = async () => { try { await api('/api/logout', {}); location.reload(); } catch (e) { error(e); } };
    $('filter').onchange = renderTickets;
    $('refresh').onclick = async () => { try { await refreshTickets(); } catch (e) { error(e); } };
-   $('settingsForm').onsubmit = async e => { e.preventDefault(); clearError(); readSettings(); try { if (!settings.languages.length) throw Error(); if (server) await api('/api/settings', {settings}); else saveDemo('settings'); $('saved').textContent = ' ✓ ' + t('saved'); } catch (err) { error(err); } };
+   $('missingToggle').onclick = () => { missingOnly = !missingOnly; settingsState(); };
+   $('settingsForm').oninput = () => { settingsDirty = true; $('saved').textContent = t('unsaved'); settingsState(); };
+   $('settingsForm').onsubmit = async e => { e.preventDefault(); clearError(); readSettings(); try { if (!settings.languages.length) throw Error(); if (server) await api('/api/settings', {settings}); else saveDemo('settings'); settingsDirty = false; $('saved').textContent = ' ✓ ' + t('saved'); settingsState(); } catch (err) { error(err); } };
    $('linkForm').onsubmit = async e => { e.preventDefault(); try { const r = await api('/api/guest-links', {room: $('linkRoom').value}); $('guestURL').value = location.origin + r.url; } catch (err) { error(err); } };
    $('userForm').onsubmit = async e => { e.preventDefault(); try { await api('/api/users', {name: $('newName').value, password: $('newPassword').value, role: $('newRole').value}); $('newPassword').value = ''; await openWorkspace(); } catch (err) { error(err); } };
    try { await openWorkspace(); } catch (e) { if (e.status !== 401) error(e); }
