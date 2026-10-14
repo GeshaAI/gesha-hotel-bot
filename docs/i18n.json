@@ -65,7 +65,7 @@
     "cancelled": "Обращение отменено.",
     "demoTicket": "Тестовая заявка №{id} сохранена только в этом браузере. Персоналу не отправлена.",
     "version": "Версия",
-    "offline": "Нет связи с сервером. Данные не отправлены.",
+    "offline": "Не удалось получить подтверждение. Перед повторной отправкой уточните у администратора, чтобы не создать дубликат.",
     "next": "Следующий статус",
     "configure": "Информация гостиницы",
     "all": "Все заявки",
@@ -77,7 +77,9 @@
     "cleaning": "Уборка",
     "repair": "Ремонт",
     "help": "Помощь",
-    "category": "Категория"
+    "category": "Категория",
+    "workspace": "Рабочая панель",
+    "rulesBased": "На основе правил"
   },
   "en": {
     "guest": "Guest chat",
@@ -145,7 +147,7 @@
     "cancelled": "Request cancelled.",
     "demoTicket": "Test request #{id} saved only in this browser. It was not sent to staff.",
     "version": "Version",
-    "offline": "Server unavailable. Data was not sent.",
+    "offline": "Confirmation could not be received. Check with reception before resending to avoid a duplicate.",
     "next": "Next status",
     "configure": "Hotel information",
     "all": "All requests",
@@ -157,7 +159,9 @@
     "cleaning": "Cleaning",
     "repair": "Repair",
     "help": "Help",
-    "category": "Category"
+    "category": "Category",
+    "workspace": "Workspace",
+    "rulesBased": "Rules-based"
   },
   "de": {
     "guest": "Gästechat",
@@ -225,7 +229,7 @@
     "cancelled": "Anfrage abgebrochen.",
     "demoTicket": "Testanfrage Nr. {id} nur in diesem Browser gespeichert. Nicht an das Personal gesendet.",
     "version": "Version",
-    "offline": "Server nicht erreichbar. Daten wurden nicht gesendet.",
+    "offline": "Keine Bestätigung erhalten. Bitte vor dem erneuten Senden an der Rezeption nachfragen, um doppelte Anfragen zu vermeiden.",
     "next": "Nächster Status",
     "configure": "Hotelinformationen",
     "all": "Alle Anfragen",
@@ -237,7 +241,9 @@
     "cleaning": "Reinigung",
     "repair": "Reparatur",
     "help": "Hilfe",
-    "category": "Kategorie"
+    "category": "Kategorie",
+    "workspace": "Arbeitsbereich",
+    "rulesBased": "Regelbasiert"
   },
   "uk": {
     "guest": "Гостьовий чат",
@@ -305,7 +311,7 @@
     "cancelled": "Звернення скасовано.",
     "demoTicket": "Тестову заявку №{id} збережено лише в цьому браузері. Персоналу не надіслано.",
     "version": "Версія",
-    "offline": "Сервер недоступний. Дані не надіслано.",
+    "offline": "Не вдалося отримати підтвердження. Перед повторним надсиланням уточніть в адміністратора, щоб не створити дублікат.",
     "next": "Наступний статус",
     "configure": "Інформація готелю",
     "all": "Усі заявки",
@@ -317,6 +323,8 @@
     "cleaning": "Прибирання",
     "repair": "Ремонт",
     "help": "Допомога",
-    "category": "Категорія"
+    "category": "Категорія",
+    "workspace": "Робоча панель",
+    "rulesBased": "На основі правил"
   }
 }
