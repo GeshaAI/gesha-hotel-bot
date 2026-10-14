@@ -20,7 +20,7 @@
 | 8. Настройки | Manager записал настройки в SQLite; новое чтение и чат получили их; Staff получил 403 |
 | 9. Четыре языка | Проверены RU/DE/EN/UK ответы и совпадение ключей переводов UI |
 | 10. Мобильная страница | Браузерные E2E прошли в GitHub Actions: Chromium, 390×844 и 800×1280, без горизонтального переполнения. Физическое Android-устройство не проверялось |
-| 11. Публикация | До изменений v0.3 HTTP 200, байты страницы совпали с docs/index.html, Pages run 38540109346 success. Публикация v0.4 пока ожидается после merge PR #1 |
+| 11. Публикация | До изменений v0.3 HTTP 200, байты страницы совпали с docs/index.html, Pages run 38540109346 success. v0.4 опубликована: Pages run 38542576031 success; все 7 публичных файлов HTTP 200 и побайтно совпадают с main 87677b3 |
 | 12. Изоляция гостиниц | Beta Owner/Manager/Staff не видят заявку Alpha; чужой ID изменения → 404; чужое назначение → 400; подмена hotel в body/query не меняет tenant |
 
 Дополнительно: запрет анонимного чтения заявок/настроек; недействительный/истёкший гостевой токен; серверная привязка комнаты; cookie HttpOnly/SameSite/Secure; CSRF-header; пустое/слишком длинное сообщение; защита от скачивания hotel.db; неисправность Wi-Fi прежде FAQ; запрос подробностей для общей просьбы помощи.
@@ -33,3 +33,15 @@ Telegram: только обработчик локально без сети —
 ## GitHub Actions
 
 Коммит `61cf9c4df54d3cdda6c8bc3d41ab56d0d4a4ad4d`, run [38542254576](https://github.com/GeshaAI/gesha-hotel-bot/actions/runs/38542254576): все тестовые шаги, включая `node tests/browser.cjs`, успешно выполнены. Браузерные проверки охватывают сохранение после reload, уточнение комнаты, четыре языка интерфейса, смену темы, реальные серверные login/logout и полный цикл заявки. Визуальная оценка скриншотов человеком и физический Android-тест не проводились.
+
+## Подтверждение опубликованной версии
+
+[PR #1](https://github.com/GeshaAI/gesha-hotel-bot/pull/1) объединён. Merge commit: `87677b3d66143a54fa9a468baf8cd9ce96244e01`.
+
+- [Проверки итогового main — success](https://github.com/GeshaAI/gesha-hotel-bot/actions/runs/38542576594).
+- [GitHub Pages deployment — success](https://github.com/GeshaAI/gesha-hotel-bot/actions/runs/38542576031).
+- Прямой HTTP-запрос к публичным `index.html`, `staff.html`, `ui.js`, `engine.js`, `rules.json`, `i18n.json`, `style.css` с `?v=0.4.0`: **7/7 HTTP 200; 7/7 побайтное совпадение с файлами docs в итоговом commit**.
+- SHA-256 публичной гостевой HTML: `328f80dbbbd841041a204ecdf10f988ee598488685a7301da6fc50c071a670b2`.
+- Административный Pages settings endpoint при первоначальной попытке вернул 404; точная конфигурация в Settings не прочитана. Фактически подтверждены успешный dynamic Pages workflow и соответствие опубликованных файлов каталогу docs.
+
+[Демо v0.4](https://geshaai.github.io/gesha-hotel-bot/?v=0.4.0). Это статическая демонстрация; внешний Python backend не развёрнут. Последующий коммит обновляет только этот отчёт и handoff, не код или публичные assets.
